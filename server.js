@@ -1,17 +1,20 @@
+require('dotenv').config();
 const express = require('express')
 const app = express();
-const PORT = 3000;
-const serviceaccount = require('./serviceaccountkey.json')
+const PORT = 8080;
+const serviceaccount = JSON.parse(process.env.SERVICE_ACCOUNT_KEY)
 const admin = require('firebase-admin')
-const connection = require('./database')
-
+const client = require('./database')
+const path = require('path');
 
 // IMPORT ROUTES HERE
 const authRouter = require('./routes/auth')
 const stressLevelRouter = require('./routes/stresslevel')
+const moodRouter = require('./routes/mood')
+const chatbotRouter = require('./routes/chatbot')
 
 // IMPORT MIDDLEWARES HERE
-const authenticateJWT = require('./middlewares/authorization')
+const authenticateToken = require('./middlewares/authorization')
 
 
 app.use(express.json())
@@ -29,26 +32,27 @@ app.listen(PORT, (error)=> {
 })
 
 app.get('/', (req, res)  => {
-    res.send('Hello World! it is on')
+    const filePath = path.join(__dirname, 'public', 'index.html');
+    res.sendFile(filePath);
 })
+
+// app.get('/db',authenticateToken, (res)  => {
+//     client.query('SELECT version()'  , (err, res) => {
+//         console.log(err, res)
+// 
+//     })
+// })
+
 
 // ROUTER HERE
-app.use('/api/auth', authenticateJWT, authRouter);
-
-
-app.post('/company/:input', async (req, res)=> {
-    const userInput = req.params.input;
-    const sql = 'INSERT INTO company (company_name) VALUES (?)';
-    await connection.query(sql, [userInput]);
-    res.status(200).json({message: 'New Company Added'});
-})
-
-
-app.use('/api/stress', stressLevelRouter);
+app.use('/api/auth', authenticateToken, authRouter);
+app.use('/api/stress-level', authenticateToken, stressLevelRouter);
+app.use('/api/mood', authenticateToken, moodRouter);
+app.use('/api', authenticateToken, chatbotRouter);
 
 app.post('/company/:input', async (req, res) => {
   const userInput = req.params.input;
   const sql = 'INSERT INTO company (company_name) VALUES (?)';
-  await connection.query(sql, [userInput]);
+  await client.query(sql, [userInput]);
   res.status(200).json({ message: 'New Company Added' });
 });
